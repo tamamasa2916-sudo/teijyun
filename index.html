@@ -771,7 +771,7 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:13px 0}
     </div>
     <div class="fg"><label class="fl">実際の利用日数</label>
       <input type="number" id="usedDays" value="30" min="1" max="30">
-      <div class="hint">満月の場合は月の日数と同じ値</div>
+      <div class="hint">満月利用の場合は月の日数と同じ値。月途中の場合は実際の利用日数を入力してください（日割り単位数×日数で計算）</div>
     </div>
   </div>
 </div>
@@ -936,6 +936,8 @@ if ('serviceWorker' in navigator) {
 'use strict';
 
 var BASE={integrated_no_nursing:{1:5446,2:9720,3:16140,4:20417,5:24692},integrated_nursing:{1:7946,2:12413,3:18948,4:23358,5:28298},cooperation:{1:5446,2:9720,3:16140,4:20417,5:24692}};
+/* 日割り単位数（令和6年度告示値）：1日あたり単位数 × 利用日数 で算定 */
+var BASE_DAILY={integrated_no_nursing:{1:179,2:320,3:531,4:672,5:812},integrated_nursing:{1:261,2:408,3:623,4:768,5:931},cooperation:{1:179,2:320,3:531,4:672,5:812}};
 var SVCLABEL={integrated_no_nursing:'一体型（訪問看護なし）',integrated_nursing:'一体型（訪問看護あり）',cooperation:'連携型'};
 var _lastSteps=[];
 var _pvMode='simple';
@@ -1115,9 +1117,17 @@ function calculate(){
   var steps=[];
 
   var bRaw=BASE[svc][lv];
-  var base=isPro?Math.floor(bRaw*ud/md):bRaw;
-  steps.push({l:'基本単位数（'+SVCLABEL[svc]+' 要介護'+lv+'）',v:fmt(bRaw)+' 単位',c:''});
-  if(isPro) steps.push({l:'日割り（'+ud+'日÷'+md+'日）',v:'→ '+fmt(base)+' 単位',c:''});
+  var base;
+  if(isPro){
+    /* 日割り：告示の1日あたり単位数 × 利用日数 */
+    var dailyRate=BASE_DAILY[svc][lv];
+    base=dailyRate*ud;
+    steps.push({l:'基本単位数（'+SVCLABEL[svc]+' 要介護'+lv+'）',v:fmt(bRaw)+' 単位/月',c:''});
+    steps.push({l:'日割り（'+dailyRate+'単位/日 × '+ud+'日）',v:'→ '+fmt(base)+' 単位',c:''});
+  } else {
+    base=bRaw;
+    steps.push({l:'基本単位数（'+SVCLABEL[svc]+' 要介護'+lv+'）',v:fmt(bRaw)+' 単位',c:''});
+  }
 
   var fAdd=0;
   var vCbs=document.querySelectorAll('.cb-input[data-value]:checked');
