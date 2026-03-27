@@ -4,7 +4,7 @@
    GitHub Pages: https://tamamasa2916-sudo.github.io/teijyun.v2/
    ───────────────────────────────────────── */
 
-var CACHE_NAME = 'teiki-v2';
+var CACHE_NAME = 'teiki-v3';
 var BASE = '/teijyun.v2';
 
 /* ── インストール：必須リソースを事前キャッシュ ── */
@@ -65,6 +65,15 @@ self.addEventListener('activate', function(e) {
 self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith('http')) return;
+
+  /* /teijyun.v2/ へのアクセスは index.html として処理（iOS ホーム画面起動対応） */
+  var url = new URL(e.request.url);
+  if (url.pathname === '/teijyun.v2/' || url.pathname === '/teijyun.v2') {
+    e.respondWith(caches.match(BASE + '/index.html').then(function(cached) {
+      return cached || fetch(BASE + '/index.html');
+    }));
+    return;
+  }
 
   if (e.request.url.includes('fonts.googleapis.com') ||
       e.request.url.includes('fonts.gstatic.com')) {

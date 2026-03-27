@@ -2,7 +2,7 @@
   "name": "定期巡回・随時対応型 利用料計算",
   "short_name": "定期巡回計算",
   "description": "定期巡回・随時対応型訪問介護看護 利用料 簡易計算ツール（令和6年度介護報酬改定対応）",
-  "start_url": "/teijyun.v2/index.html",
+  "start_url": "/teijyun.v2/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f0f4f8",

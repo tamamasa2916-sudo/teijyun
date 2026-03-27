@@ -865,10 +865,7 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:13px 0}
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    /* GitHub Pages 等のサブパス配信でもスコープが正しく設定されるよう
-       index.html の置かれたディレクトリを動的に取得してスコープに指定する */
-    var swScope = location.pathname.replace(/\/[^/]*$/, '/') || '/';
-    navigator.serviceWorker.register('./sw.js', { scope: swScope }).then(function(reg) {
+    navigator.serviceWorker.register('/teijyun.v2/sw.js', { scope: '/teijyun.v2/' }).then(function(reg) {
       console.log('[PWA] Service Worker 登録完了:', reg.scope);
       reg.onupdatefound = function() {
         var newWorker = reg.installing;
