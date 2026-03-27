@@ -4,7 +4,7 @@
    GitHub Pages: https://tamamasa2916-sudo.github.io/teijyun.v2/
    ───────────────────────────────────────── */
 
-var CACHE_NAME = 'teiki-v3';
+var CACHE_NAME = 'teiki-v4';
 var BASE = '/teijyun.v2';
 
 /* ── インストール：必須リソースを事前キャッシュ ── */
