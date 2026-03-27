@@ -359,10 +359,16 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:13px 0}
 /* ── 印刷専用CSS ── */
 @media print{
   body{background:#fff!important;color:#000!important;padding:0!important;font-size:10pt}
-  body>*:not(#result){display:none!important}
-  #result{display:block!important;position:static}
+  /* wrap以外のbody直下要素を非表示 */
+  body>*:not(.wrap){display:none!important}
+  /* wrap内のresult以外を非表示 */
+  .wrap>*:not(#result){display:none!important}
+  .wrap{max-width:100%!important;padding:0!important;margin:0!important}
+  #result{display:block!important;position:static!important}
   #result>.card{border:none!important;background:#fff!important;padding:0!important;margin:0!important}
-  .print-area,.reset-btn,#pv-modal,#pwa-banner{display:none!important}
+  .print-area,.reset-btn,#pv-modal,#pwa-banner,
+  #sw-update-banner,#reset-dialog,#pdf-guide,
+  #validation-banner{display:none!important}
   #print-only{display:block!important}
   .amount{-webkit-text-fill-color:#1a5fa8!important;background:none!important;font-size:30pt!important}
   .unit{-webkit-text-fill-color:#555!important}
@@ -536,8 +542,7 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:13px 0}
 </div>
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-</head>
+
 <body>
 
 <!-- PWAインストールバナー -->
@@ -1196,14 +1201,23 @@ function calculate(){
   var cop=Math.floor(totF*cr);
   var ins=totF-cop;
   steps.push({l:'総報酬額（×'+up.toFixed(2)+'円/単位）',v:fmt(totF)+' 円',c:''});
-  steps.push({l:'介護保険給付額（'+Math.round((1-cr)*100)+'割）',v:fmt(ins)+' 円',c:''});
-  steps.push({l:'利用者自己負担額（'+Math.round(cr*100)+'割）',v:fmt(cop)+' 円',c:'money',sep:true});
+  steps.push({l:'介護保険給付額（'+Math.round((1-cr)*10)+'割）',v:fmt(ins)+' 円',c:''});
+  steps.push({l:'利用者自己負担額（'+Math.round(cr*10)+'割）',v:fmt(cop)+' 円',c:'money',sep:true});
 
   _lastSteps=steps;
 
   document.getElementById('copay-main').textContent=fmt(cop);
-  document.getElementById('copay-note').textContent='総報酬 '+fmt(totF)+'円 のうち'+Math.round(cr*100)+'割負担';
-  document.getElementById('bk-base').innerHTML=fmt(base)+' <span class="bu">単位</span>';
+  document.getElementById('copay-note').textContent='総報酬 '+fmt(totF)+'円 のうち'+Math.round(cr*10)+'割負担';
+  /* 日割り時はラベルと値を変更 */
+  var bkBaseItem=document.getElementById('bk-base');
+  var bkBaseLabel=bkBaseItem?bkBaseItem.previousElementSibling:null;
+  if(isPro){
+    if(bkBaseLabel) bkBaseLabel.textContent='基本単位数（日割）';
+    if(bkBaseItem) bkBaseItem.innerHTML=fmt(base)+' <span class="bu">単位</span>';
+  } else {
+    if(bkBaseLabel) bkBaseLabel.textContent='基本単位数';
+    if(bkBaseItem) bkBaseItem.innerHTML=fmt(base)+' <span class="bu">単位</span>';
+  }
   document.getElementById('bk-sub').innerHTML=fmt(subT)+' <span class="bu">単位</span>';
   document.getElementById('bk-shogai').innerHTML=fmt(shU)+' <span class="bu">単位</span>';
   document.getElementById('bk-total').innerHTML=fmt(totU)+' <span class="bu">単位</span>';
@@ -1491,19 +1505,44 @@ function execPrint(){
   document.getElementById('pt-title').textContent=titles[_pvMode];
   document.getElementById('pt-sub').textContent=sub;
   closePreview();
-  setTimeout(function(){window.print();},400);
+  /* モーダルを閉じた後、結果を表示状態にしてからスクロールを一番上に戻して印刷 */
+  setTimeout(function(){
+    document.getElementById('result').style.display='block';
+    window.scrollTo(0,0);
+    window.print();
+  },300);
 }
 
 function savePDF(){
-  var jsPDFLib = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
-  if(!jsPDFLib){alert('PDFライブラリの読み込みに失敗しました。\nネット接続をご確認ください。');return;}
-  if(typeof html2canvas === 'undefined'){alert('html2canvasの読み込みに失敗しました。\nネット接続をご確認ください。');return;}
   var pvBtn = document.getElementById('pv-pdf');
   var origText = pvBtn ? pvBtn.textContent : '';
+  /* ボタンをリトライ開始時点で無効化 */
+  if(pvBtn){ pvBtn.textContent = '⏳ 読み込み中...'; pvBtn.disabled = true; }
+
+  var attempts=0;
+  function tryGenerate(){
+    var jsPDFLib = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+    var h2c = (typeof html2canvas !== 'undefined');
+    if(!jsPDFLib || !h2c){
+      if(attempts++ < 30){
+        setTimeout(tryGenerate, 100);
+      } else {
+        if(pvBtn){ pvBtn.textContent = origText; pvBtn.disabled = false; }
+        alert('PDFライブラリの読み込みに失敗しました。\nネット接続を確認して再度お試しください。');
+      }
+      return;
+    }
+    doGeneratePDF(jsPDFLib, pvBtn, origText);
+  }
+  tryGenerate();
+}
+
+function doGeneratePDF(jsPDFLib, pvBtn, origText){
   if(pvBtn){ pvBtn.textContent = '⏳ 生成中...'; pvBtn.disabled = true; }
   var sheet = document.getElementById('pv-sheet');
-  var opt = {scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false,windowWidth:sheet.scrollWidth,windowHeight:sheet.scrollHeight};
-  var CANVAS_SCALE=2; /* scaleオプションと同値 */
+  var sheetW = sheet.offsetWidth || 600;
+  var opt = {scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false,windowWidth:sheetW,windowHeight:sheet.scrollHeight};
+  var CANVAS_SCALE=2;
   html2canvas(sheet, opt).then(function(canvas){
     var imgData = canvas.toDataURL('image/jpeg', 0.92);
     var imgW = canvas.width;
@@ -1517,10 +1556,8 @@ function savePDF(){
     var pageContentH = pageH - margin * 2;
     var doc = new jsPDFLib({orientation:'portrait',unit:'mm',format:'a4'});
     if(scaledH <= pageContentH){
-      /* 1ページに収まる場合はそのまま */
       doc.addImage(imgData, 'JPEG', margin, margin, contentW, scaledH);
     } else {
-      /* 縦に長い場合は複数ページに分割 */
       var pageImgH = Math.floor(pageContentH / ratio * CANVAS_SCALE);
       var offsetY = 0;
       while(offsetY < imgH){
@@ -1758,7 +1795,7 @@ function renderHistory(){
     var addCount=h.checkedIds?h.checkedIds.length:0;
     html+='<div class="hist-item" data-idx="'+i+'">'
       +'<div class="hist-left">'
-      +'<div class="hist-label">'+escHtml(svcT)+'　要介護'+escHtml(String(h.lv))+'　'+Math.round(parseFloat(h.cr)*100)+'割</div>'
+      +'<div class="hist-label">'+escHtml(svcT)+'　要介護'+escHtml(String(h.lv))+'　'+Math.round(parseFloat(h.cr)*10)+'割</div>'
       +'<div class="hist-sub">'+escHtml(h.time)+(addCount?'　加算'+addCount+'件':'')+'　単価'+parseFloat(h.up).toFixed(2)+'円</div>'
       +'</div>'
       +'<div><span class="hist-amount">'+fmt(h.copay)+'</span><span class="hist-yen">円</span></div>'
@@ -1894,5 +1931,8 @@ document.addEventListener('DOMContentLoaded',function(){
 
 })();
 </script>
+<!-- PDF生成ライブラリ（IIFE完了後に読み込み・defer不要） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
